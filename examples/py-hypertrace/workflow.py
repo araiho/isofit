@@ -17,8 +17,9 @@ logger = logging.getLogger(__name__)
 
 restart = False
 clean = False
-consolidate_output = False
+consolidate_output = True
 cluster = False
+forward_only = True
 if len(sys.argv) > 1:
     configfile = sys.argv[1]
     if "--restart" in sys.argv:
@@ -122,7 +123,7 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
     logger.info("Running config %d of %d: %s", iht+1, len(ht_iter), argd)
     ht_outdir = do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                               rtm_template_file, lutdir, outdir,
-                              rayconfig=rayconfig,
+                              rayconfig=rayconfig, forward_only = forward_only,
                               **argd)
     # Post process files here
     if consolidate_output and ht_outdir is not None:
@@ -134,12 +135,19 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
             assert len(iii) < 2, f"Found {len(iii)} matching HT configs in outfile"
             assert len(iii) > 0, "Found no matching HT configs in outfile"
             dsz["completed"][iii] = True
-            dsz["toa_radiance"][:,:,:,iii] = sp.open_image(str(ht_outdir / "toa-radiance.hdr"))[:,:,:]
-            dsz["estimated_reflectance"][:,:,:,iii] = sp.open_image(str(ht_outdir / "estimated-reflectance.hdr"))[:,:,:]
-            dsz["estimated_state"][:,:,:,iii] = sp.open_image(str(ht_outdir / "estimated-state.hdr"))[:,:,:]
-            dsz["posterior_uncertainty"][:,:,:,iii] = sp.open_image(str(ht_outdir / "posterior-uncertainty.hdr"))[:,:,:]
+            
+            #import pdb; pdb.set_trace()
+            
+            dsz["toa_radiance"][:,:,:,float(iii[0])] = sp.open_image(str(ht_outdir / "toa-radiance.hdr"))[:,:,:]
+            
+            if not forward_only:
+              dsz["estimated_reflectance"][:,:,:,float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-reflectance.hdr"))[:,:,:]
+              dsz["estimated_state"][:,:,:,float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-state.hdr"))[:,:,:]
+              dsz["posterior_uncertainty"][:,:,:,float(iii[0])] = sp.open_image(str(ht_outdir / "posterior-uncertainty.hdr"))[:,:,:]
         if clean:
             logger.info("Deleting output from `%s`", str(ht_outdir))
             shutil.rmtree(ht_outdir)
+    else:
+      logger.info('not consolidating', str(ht_outdir))
 
 logger.info("Workflow completed successfully.")

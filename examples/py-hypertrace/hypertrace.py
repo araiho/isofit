@@ -35,6 +35,7 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                   elevation_km=0.01,
                   inversion_mode="inversion",
                   use_empirical_line=False,
+                  forward_only = True,
                   calibration_uncertainty_file=None,
                   n_calibration_draws=1,
                   calibration_scale=1,
@@ -339,6 +340,10 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
             with open(outdir2 / "error-forward.txt", "w") as f:
                 f.write(str(err))
             return None
+    
+    if forward_only:
+      logger.info('Stopping before inversion')
+      return outdir2
 
     isofit_inv = copy.deepcopy(isofit_common)
     if inversion_mode == "simple":
