@@ -116,6 +116,7 @@ if cluster:
                 "redis_password": redis_password}
 
 logger.info("Starting Hypertrace workflow.")
+
 for ht, iht in zip(ht_iter, range(len(ht_iter))):
     argd = dict()
     for key, value in zip(hypertrace_config.keys(), ht):
