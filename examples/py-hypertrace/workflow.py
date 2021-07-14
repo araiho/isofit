@@ -19,7 +19,7 @@ restart = False
 clean = False
 consolidate_output = True
 cluster = False
-forward_only = True
+forward_only = False
 if len(sys.argv) > 1:
     configfile = sys.argv[1]
     if "--restart" in sys.argv:
@@ -51,6 +51,7 @@ if consolidate_output:
 
 wavelength_file = mkabs(config["wavelength_file"])
 reflectance_file = mkabs(config["reflectance_file"])
+algorithm_file = mkabs(config["algorithm_file"])
 if "libradtran_template_file" in config:
     raise Exception("`libradtran_template_file` is deprecated. Use `rtm_template_file` instead.")
 rtm_template_file = mkabs(config["rtm_template_file"])
@@ -123,6 +124,7 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
         argd[key] = value
     logger.info("Running config %d of %d: %s", iht+1, len(ht_iter), argd)
     ht_outdir = do_hypertrace(isofit_config, wavelength_file, reflectance_file,
+                              algorithm_file,
                               rtm_template_file, lutdir, outdir,
                               rayconfig=rayconfig, forward_only = forward_only,
                               **argd)

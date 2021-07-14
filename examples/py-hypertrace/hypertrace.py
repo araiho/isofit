@@ -13,15 +13,19 @@ import spectral as sp
 from scipy.io import loadmat
 from scipy.interpolate import interp1d
 
+from hy_algorithm import do_algorithm
+
 from isofit.core.isofit import Isofit
+from isofit.core.fileio import IO
 from isofit.utils import empirical_line, segment, extractions
 from isofit.utils.apply_oe import write_modtran_template
 
 logger = logging.getLogger(__name__)
 
 def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
+                  algorithm_file,
                   rtm_template_file,
-                  lutdir, outdir,
+                  lutdir, outdir,   
                   surface_file="./data/prior.mat",
                   noisefile=None, snr=300,
                   aod=0.1, h2o=1.0, atmosphere_type="ATM_MIDLAT_WINTER",
@@ -152,6 +156,7 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
     # changes propagate to the `forward_settings` object below.
     forward_settings = isofit_common["forward_model"]
     instrument_settings = forward_settings["instrument"]
+    
     if rayconfig is not None:
         logger.info("Configuring Ray")
         implementation = isofit_common["implementation"]
@@ -425,6 +430,15 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                 with open(outdir2 / "error-inverse.txt", "w") as f:
                     f.write(str(err))
                 return None
+        
+        
+         
+    if algorithm_file.exists() and not overwrite:
+           logger.info("Applying algorithm")
+           do_algorithm(outdir2, algorithm_file, est_refl_file)
+    else:
+           logger.info("NOT applying algorithim")
+    
     logger.info("Workflow complete!")
     return outdir2
 
@@ -529,7 +543,7 @@ def sample_calibration_uncertainty(input_file: pathlib.Path,
     # image (i.e., the same bias is added to all pixels).
     z = np.random.normal(size=cov_l.shape[0], scale=bias_scale)
     Az = 1.0 + cov_l @ z
-    # Resample the added noise vector to match the wavelengths of the target
+    # Resample the added noise vector to match the aalengths of the target
     # image.
     Az_resampled = interp1d(cov_wl, Az, fill_value="extrapolate")(rad_wl)
     img_m *= Az_resampled
