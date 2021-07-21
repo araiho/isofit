@@ -1,11 +1,14 @@
 {
     "wavelength_file": "./hypertrace-data/wavelengths/aviris-ng.txt",
-    "reflectance_file": "./hypertrace-data/reflectance/dirsig/SBG_sim_10nm.img",
-    "algorithm_file": "./hypertrace-data/algorithm/chlorophylls_area_10nm.json",
+    "reflectance_file": "./hypertrace-data/reflectance/neon-trait/neon-ground.envi",
     "rtm_template_file": "/dev/null",
     "lutdir": "./luts/sRTMnet",
-    "outdir": "./output-dirsig/example-dirsig",
-    "outfile": "./output-dirsig/example-dirsig.nc",
+    "outdir": "./output-neon/example-neon-mineral",
+    "outfile": "./output-neon/example-neon-mineral.nc",
+    "algorithm": {
+        "type": "calcite",
+        "file": "./hypertrace-data/algorithm/mineral/calcite_gds304.4124.asc.txt"
+    },
     "isofit": {
         "forward_model": {
             "instrument": {
@@ -61,11 +64,7 @@
         }
     },
     "hypertrace": {
-        "atm_aod_h2o": [["ATM_MIDLAT_SUMMER", 0.01, 1.0],
-        ["ATM_MIDLAT_SUMMER", 0.1, 1.0],
-        ["ATM_MIDLAT_SUMMER", 0.2, 1.0],
-        ["ATM_MIDLAT_SUMMER", 0.3, 1.0],
-        ["ATM_MIDLAT_SUMMER", 0.4, 1.0]],
+        "atm_aod_h2o": [["ATM_MIDLAT_SUMMER", 0.01, 1.0]],
         "inversion_mode": ["inversion"],
         "noisefile": ["./hypertrace-data/noise/noise_coeff_sbg_cbe0.txt"],
         "surface_file": ["./hypertrace-data/priors/aviris-ng/surface_EMIT.mat"],

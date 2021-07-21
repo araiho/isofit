@@ -13,7 +13,7 @@ import spectral as sp
 from scipy.io import loadmat
 from scipy.interpolate import interp1d
 
-from hy_algorithm import do_algorithm
+from hy_algorithm import do_vegetation_algorithm, do_mineral_algorithm
 
 from isofit.core.isofit import Isofit
 from isofit.core.fileio import IO
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                   algorithm_file,
+                  algorithm_type,
                   rtm_template_file,
                   lutdir, outdir,   
                   surface_file="./data/prior.mat",
@@ -431,13 +432,16 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                     f.write(str(err))
                 return None
         
-        
-         
     if algorithm_file.exists() and not overwrite:
            logger.info("Applying algorithm")
-           do_algorithm(outdir2, algorithm_file, est_refl_file)
+
+           if algorithm_type == "vegetation":
+               do_vegetation_algorithm(outdir2, algorithm_file, est_refl_file)
+           if algorithm_type == "hematite" or "goethite" or "calcite" or "kaolinite":
+               do_mineral_algorithm(outdir2, algorithm_file, algorithm_type, est_refl_file)
+
     else:
-           logger.info("NOT applying algorithim")
+           logger.info("No algorithim file present.")
     
     logger.info("Workflow complete!")
     return outdir2

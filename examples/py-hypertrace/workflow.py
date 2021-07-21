@@ -51,7 +51,17 @@ if consolidate_output:
 
 wavelength_file = mkabs(config["wavelength_file"])
 reflectance_file = mkabs(config["reflectance_file"])
-algorithm_file = mkabs(config["algorithm_file"])
+
+algorithm_config = config["algorithm"]
+algorithm_file = mkabs(algorithm_config["file"])
+algorithm_type = algorithm_config["type"]
+
+if algorithm_file.exists():
+    logger.info("Algorithm file: %s", algorithm_file)
+else:
+    logger.error('No algorithm file')
+    exit()
+
 if "libradtran_template_file" in config:
     raise Exception("`libradtran_template_file` is deprecated. Use `rtm_template_file` instead.")
 rtm_template_file = mkabs(config["rtm_template_file"])
@@ -125,6 +135,7 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
     logger.info("Running config %d of %d: %s", iht+1, len(ht_iter), argd)
     ht_outdir = do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                               algorithm_file,
+                              algorithm_type,
                               rtm_template_file, lutdir, outdir,
                               rayconfig=rayconfig, forward_only = forward_only,
                               **argd)
