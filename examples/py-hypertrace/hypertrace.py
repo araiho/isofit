@@ -13,7 +13,7 @@ import spectral as sp
 from scipy.io import loadmat
 from scipy.interpolate import interp1d
 
-from hy_algorithm import do_vegetation_algorithm, do_mineral_algorithm
+from hy_algorithm import do_vegetation_algorithm, do_mineral_algorithm, do_aquatic_algorithm
 
 from isofit.core.isofit import Isofit
 from isofit.core.fileio import IO
@@ -22,11 +22,12 @@ from isofit.utils.apply_oe import write_modtran_template
 
 logger = logging.getLogger(__name__)
 
+
 def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                   algorithm_file,
                   algorithm_type,
                   rtm_template_file,
-                  lutdir, outdir,   
+                  lutdir, outdir,
                   surface_file="./data/prior.mat",
                   noisefile=None, snr=300,
                   aod=0.1, h2o=1.0, atmosphere_type="ATM_MIDLAT_WINTER",
@@ -40,7 +41,7 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                   elevation_km=0.01,
                   inversion_mode="inversion",
                   use_empirical_line=False,
-                  forward_only = True,
+                  forward_only=True,
                   calibration_uncertainty_file=None,
                   n_calibration_draws=1,
                   calibration_scale=1,
@@ -157,7 +158,7 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
     # changes propagate to the `forward_settings` object below.
     forward_settings = isofit_common["forward_model"]
     instrument_settings = forward_settings["instrument"]
-    
+
     if rayconfig is not None:
         logger.info("Configuring Ray")
         implementation = isofit_common["implementation"]
@@ -189,8 +190,8 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
     atmtag = f"aod_{aod:.3f}__h2o_{h2o:.3f}"
     if calibration_uncertainty_file is not None:
         caltag = f"cal_{pathlib.Path(calibration_uncertainty_file).stem}__" +\
-                f"draw_{n_calibration_draws}__" +\
-                f"scale_{calibration_scale}"
+            f"draw_{n_calibration_draws}__" +\
+            f"scale_{calibration_scale}"
     else:
         caltag = "cal_NONE__draw_0__scale_0"
 
@@ -346,10 +347,10 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
             with open(outdir2 / "error-forward.txt", "w") as f:
                 f.write(str(err))
             return None
-    
+
     if forward_only:
-      logger.info('Stopping before inversion')
-      return outdir2
+        logger.info('Stopping before inversion')
+        return outdir2
 
     isofit_inv = copy.deepcopy(isofit_common)
     if inversion_mode == "simple":
@@ -413,7 +414,6 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                     f.write(str(err))
                 return None
 
-
     else:
         if est_refl_file.exists() and not overwrite:
             logger.info("Skipping inversion because output exists.")
@@ -431,18 +431,21 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                 with open(outdir2 / "error-inverse.txt", "w") as f:
                     f.write(str(err))
                 return None
-        
+
     if algorithm_file.exists() and not overwrite:
-           logger.info("Applying algorithm")
+        logger.info("Applying algorithm")
 
-           if algorithm_type == "vegetation":
-               do_vegetation_algorithm(outdir2, algorithm_file, est_refl_file)
-           if algorithm_type == "hematite" or "goethite" or "calcite" or "kaolinite":
-               do_mineral_algorithm(outdir2, algorithm_file, algorithm_type, est_refl_file)
+        if algorithm_type == "vegetation":
+            do_vegetation_algorithm(outdir2, algorithm_file, est_refl_file)
 
+        if algorithm_type == "hematite" or algorithm_type == "goethite" or algorithm_type == "calcite" or algorithm_type == "kaolinite":
+            do_mineral_algorithm(outdir2, algorithm_file, algorithm_type, est_refl_file)
+
+        if algorithm_type == "aquatic":
+            do_aquatic_algorithm(outdir2, algorithm_file, est_refl_file)
     else:
-           logger.info("No algorithim file present.")
-    
+        logger.info("No algorithim file present.")
+
     logger.info("Workflow complete!")
     return outdir2
 
@@ -468,9 +471,9 @@ def do_inverse(isofit_inv: dict,
         unc_subs_path = post_unc_file.with_suffix("-subs")
         isofit_inv["input"]["measured_radiance_file"] = str(rdn_subs_path)
         isofit_inv["output"] = {
-            "estimated_reflectance_file":  str(rfl_subs_path),
-            "estimated_state_file":  str(state_subs_path),
-            "atmospheric_coefficients_file":  str(atm_subs_path),
+            "estimated_reflectance_file": str(rfl_subs_path),
+            "estimated_state_file": str(state_subs_path),
+            "atmospheric_coefficients_file": str(atm_subs_path),
             "posterior_uncertainty_file": str(unc_subs_path)
         }
         if not overwrite and lbl_working_path.exists() and rdn_subs_path.exists():
@@ -522,6 +525,7 @@ def do_inverse(isofit_inv: dict,
                            output_reflectance_file=str(est_refl_file),
                            output_uncertainty_file=str(post_unc_file),
                            isofit_config=str(invfile))
+
 
 def mkabs(path):
     """Make a path absolute."""

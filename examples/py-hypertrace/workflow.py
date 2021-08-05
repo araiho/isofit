@@ -91,7 +91,7 @@ if consolidate_output:
     else:
         logger.info("Creating new output file: %s", outfile)
         nrow, ncol, *_ = sp.open_image(str(reflectance_file) + ".hdr").shape
-        waves = np.loadtxt(wavelength_file)[:,1]
+        waves = np.loadtxt(wavelength_file)[:, 1]
         if np.mean(waves) < 100:
             waves = waves * 1000
         nwaves = waves.shape[0]
@@ -100,13 +100,13 @@ if consolidate_output:
         xr.Dataset(
             {
                 "toa_radiance": (["sample", "line", "band", "hypertrace"],
-                                dask.array.empty((nrow, ncol, nwaves, nht), dtype='f')),
+                                 dask.array.empty((nrow, ncol, nwaves, nht), dtype='f')),
                 "estimated_reflectance": (["sample", "line", "band", "hypertrace"],
-                                        dask.array.empty((nrow, ncol, nwaves, nht), dtype='f')),
+                                          dask.array.empty((nrow, ncol, nwaves, nht), dtype='f')),
                 "estimated_state": (["sample", "line", "statevec", "hypertrace"],
-                                    dask.array.empty((nrow, ncol, nwaves+2, nht), dtype='f')),
+                                    dask.array.empty((nrow, ncol, nwaves + 2, nht), dtype='f')),
                 "posterior_uncertainty": (["sample", "line", "statevec", "hypertrace"],
-                                        dask.array.empty((nrow, ncol, nwaves+2, nht), dtype='f')),
+                                          dask.array.empty((nrow, ncol, nwaves + 2, nht), dtype='f')),
                 "completed": (["hypertrace"], dask.array.zeros((nht), dtype='?'))
             },
             coords={
@@ -124,7 +124,7 @@ if cluster:
     redis_password = '5241590000000000'
     rayinit = ray.init(address="auto", _redis_password=redis_password)
     rayconfig = {"ip_head": rayinit["redis_address"],
-                "redis_password": redis_password}
+                 "redis_password": redis_password}
 
 logger.info("Starting Hypertrace workflow.")
 
@@ -132,12 +132,12 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
     argd = dict()
     for key, value in zip(hypertrace_config.keys(), ht):
         argd[key] = value
-    logger.info("Running config %d of %d: %s", iht+1, len(ht_iter), argd)
+    logger.info("Running config %d of %d: %s", iht + 1, len(ht_iter), argd)
     ht_outdir = do_hypertrace(isofit_config, wavelength_file, reflectance_file,
                               algorithm_file,
                               algorithm_type,
                               rtm_template_file, lutdir, outdir,
-                              rayconfig=rayconfig, forward_only = forward_only,
+                              rayconfig=rayconfig, forward_only=forward_only,
                               **argd)
     # Post process files here
     if consolidate_output and ht_outdir is not None:
@@ -149,19 +149,19 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
             assert len(iii) < 2, f"Found {len(iii)} matching HT configs in outfile"
             assert len(iii) > 0, "Found no matching HT configs in outfile"
             dsz["completed"][iii] = True
-            
+
             #import pdb; pdb.set_trace()
-            
-            dsz["toa_radiance"][:,:,:,float(iii[0])] = sp.open_image(str(ht_outdir / "toa-radiance.hdr"))[:,:,:]
-            
+
+            dsz["toa_radiance"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "toa-radiance.hdr"))[:, :, :]
+
             if not forward_only:
-              dsz["estimated_reflectance"][:,:,:,float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-reflectance.hdr"))[:,:,:]
-              dsz["estimated_state"][:,:,:,float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-state.hdr"))[:,:,:]
-              dsz["posterior_uncertainty"][:,:,:,float(iii[0])] = sp.open_image(str(ht_outdir / "posterior-uncertainty.hdr"))[:,:,:]
+                dsz["estimated_reflectance"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-reflectance.hdr"))[:, :, :]
+                dsz["estimated_state"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-state.hdr"))[:, :, :]
+                dsz["posterior_uncertainty"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "posterior-uncertainty.hdr"))[:, :, :]
         if clean:
             logger.info("Deleting output from `%s`", str(ht_outdir))
             shutil.rmtree(ht_outdir)
     else:
-      logger.info('not consolidating', str(ht_outdir))
+        logger.info('not consolidating', str(ht_outdir))
 
 logger.info("Workflow completed successfully.")

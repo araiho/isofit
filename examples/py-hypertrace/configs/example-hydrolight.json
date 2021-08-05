@@ -1,0 +1,72 @@
+{
+    "wavelength_file": "/Users/araiho/isofit/examples/20151026_SantaMonica/data/20140221_PRISM_wavelengths_truncated_clip.txt",
+    "reflectance_file": "./hypertrace-data/reflectance/hydrolight-simulations/hydrolight_small.envi",
+    "rtm_template_file": "/dev/null",
+    "lutdir": "./luts/sRTMnet",
+    "outdir": "./output-hydrolight/example-hydrolight",
+    "outfile": "./output-hydrolight/example-hydrolight.nc",
+    "algorithm": {
+        "type": "aquatic",
+        "file": "./hypertrace-data/algorithm/aquatic/case2_water.mat"
+    },
+    "isofit": {
+        "forward_model": {
+            "instrument": {
+                "wavelength_file":"/Users/araiho/isofit/examples/20151026_SantaMonica/data/20140221_PRISM_wavelengths_truncated_clip.txt",
+                "SNR": 500,
+                "integrations":25
+            },
+            "surface": {
+                "surface_category": "glint_surface",
+                "surface_file": "/Users/araiho/isofit/examples/20151026_SantaMonica/data/prm20151028_surface_coastal_model.mat"
+            },
+            "radiative_transfer": {
+                "lut_grid": { 
+                     "H2OSTR": [0.5,0.7,1.0],
+                     "AOT550": [0.0,0.05,0.1]
+                },
+                "statevector": {
+                "H2OSTR": {
+                    "bounds": [0.5, 1.0],
+                    "scale": 0.01,
+                    "prior_sigma": 100.0,
+                    "prior_mean": 1.0,
+                    "init": 0.75
+                 },
+                 "AOT550": {
+                     "bounds": [0.0, 0.1],
+                     "scale": 0.1,
+                     "prior_mean": 0.05,
+                     "prior_sigma": 100.0,
+                     "init": 0.04
+                            }
+                },
+                "unknowns": {"H2O_ABSCO": 0.01},
+                "radiative_transfer_engines": {
+                    "vswir": {
+                        "engine_name": "simulated_modtran",
+                        "engine_base_dir": "./6sv-2.1",
+                        "aerosol_template_path": "../../data/aerosol_template.json",
+                        "earth_sun_distance_file": "../../data/earth_sun_distance.txt",
+                        "irradiance_file": "../../examples/20151026_SantaMonica/data/prism_optimized_irr.dat",
+                        "emulator_aux_file": "./sRTMnet_v100/sRTMnet_v100_aux.npz",
+                        "emulator_file": "./sRTMnet_v100/sRTMnet_v100",
+                        "statevector_names": ["H2OSTR", "AOT550"]
+                    }
+                }
+            }
+        },
+        "implementation": {
+            "inversion": {
+                "windows": [[400, 1000]]
+            }
+        }
+    },
+    "hypertrace": {
+        "atm_aod_h2o": [["ATM_MIDLAT_SUMMER", 0.01, 1.0]],
+        "inversion_mode": ["inversion"],
+        "noisefile": ["./hypertrace-data/noise/noise_coeff_sbg_cbe0.txt"],
+        "surface_file": ["/Users/araiho/isofit/examples/20151026_SantaMonica/data/prm20151028_surface_coastal_model.mat"],
+        "outdir_scheme": ["hash"]
+    }
+}

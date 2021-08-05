@@ -1,13 +1,13 @@
 {
     "wavelength_file": "./hypertrace-data/wavelengths/aviris-ng.txt",
-    "reflectance_file": "./hypertrace-data/reflectance/dirsig/SBG_sim_10nm.img",
+    "reflectance_file": "./hypertrace-data/reflectance/cuprite/cuprite_small.envi",
     "rtm_template_file": "/dev/null",
     "lutdir": "./luts/sRTMnet",
-    "outdir": "./output-neon/example-dirsig",
-    "outfile": "./output-neon/example-dirsig.nc",
+    "outdir": "./output-cuprite/example-cuprite",
+    "outfile": "./output-cuprite/example-cuprite.nc",
     "algorithm": {
-        "type": "vegetation",
-        "file": "./hypertrace-data/algorithm/vegetation/chlorophylls_area_prisma_10nm.json"
+        "type": "calcite",
+        "file": "./hypertrace-data/algorithm/mineral/calcite_gds304.4124.asc.txt"
     },
     "isofit": {
         "forward_model": {
