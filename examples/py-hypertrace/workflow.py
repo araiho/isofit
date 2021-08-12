@@ -9,6 +9,7 @@ import logging
 import shutil
 import ray
 import uuid
+import pathlib
 
 from hypertrace import do_hypertrace, mkabs
 
@@ -75,6 +76,7 @@ if restart and outdir.exists():
 
 isofit_config = config["isofit"]
 hypertrace_config = config["hypertrace"]
+surface_config_file = mkabs(config["surface_config_file"])
 
 # Make RTM paths absolute
 vswir_settings = isofit_config["forward_model"]["radiative_transfer"]["radiative_transfer_engines"]["vswir"]
@@ -133,12 +135,19 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
     for key, value in zip(hypertrace_config.keys(), ht):
         argd[key] = value
     logger.info("Running config %d of %d: %s", iht + 1, len(ht_iter), argd)
-    ht_outdir = do_hypertrace(isofit_config, wavelength_file, reflectance_file,
+    ht_outdir = do_hypertrace(isofit_config,
+                              surface_config_file,
+                              wavelength_file,
+                              reflectance_file,
                               algorithm_file,
                               algorithm_type,
-                              rtm_template_file, lutdir, outdir,
-                              rayconfig=rayconfig, forward_only=forward_only,
+                              rtm_template_file,
+                              lutdir,
+                              outdir,
+                              rayconfig=rayconfig,
+                              forward_only=forward_only,
                               **argd)
+
     # Post process files here
     if consolidate_output and ht_outdir is not None:
         logger.info("Consolidating output from `%s`", str(ht_outdir))

@@ -17,18 +17,21 @@ from hy_algorithm import do_vegetation_algorithm, do_mineral_algorithm, do_aquat
 
 from isofit.core.isofit import Isofit
 from isofit.core.fileio import IO
-from isofit.utils import empirical_line, segment, extractions
+from isofit.utils import empirical_line, segment, extractions, surface_model
 from isofit.utils.apply_oe import write_modtran_template
 
 logger = logging.getLogger(__name__)
 
 
-def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
+def do_hypertrace(isofit_config,
+                  surface_config_file,
+                  wavelength_file,
+                  reflectance_file,
                   algorithm_file,
                   algorithm_type,
                   rtm_template_file,
-                  lutdir, outdir,
-                  surface_file="./data/prior.mat",
+                  lutdir,
+                  outdir,
                   noisefile=None, snr=300,
                   aod=0.1, h2o=1.0, atmosphere_type="ATM_MIDLAT_WINTER",
                   atm_aod_h2o=None,
@@ -76,8 +79,9 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
         missing.
 
     Keyword arguments:
-      surface_file: Matlab (`.mat`) file containing a multicomponent surface
-      prior. See Isofit documentation for details.
+      surface_config_file: json (`.json`) file containing a multicomponent surface
+      prior configurations. Default to EMIT surface configuration.
+      See Isofit documentation for details.
 
       noisefile: Parametric instrument noise file. See Isofit documentation for
       details. Default = `None`
@@ -166,8 +170,15 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
         implementation["redis_password"] = rayconfig["redis_password"]
     # NOTE: This also propagates to the radiative transfer engine
     instrument_settings["wavelength_file"] = str(mkabs(wavelength_file))
+
+    # load surface configs file and assign file paths to forward and inverse configs
+    surface_configs = json.load(surface_config_file.open())
+    surface_file = str(outdir / surface_configs["output_model_file"])
+
     surface_settings = forward_settings["surface"]
-    surface_settings["surface_file"] = str(mkabs(surface_file))
+    surface_settings["surface_file"] = surface_file  # outdir / surface_configs["output_model_file"]
+
+    # check noisefile
     if noisefile is not None:
         noisetag = f"noise_{pathlib.Path(noisefile).stem}"
         if "SNR" in instrument_settings:
@@ -300,15 +311,20 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
     fwd_surface["surface_category"] = "surface"
 
     # Check that prior and wavelength file have the same dimensions
+    # If not, run surface_model
     prior = loadmat(mkabs(surface_file))
     prior_wl = prior["wl"][0]
     prior_nwl = len(prior_wl)
     file_wl = np.loadtxt(wavelength_file)
     file_nwl = file_wl.shape[0]
-    assert prior_nwl == file_nwl, \
-        f"Mismatch between wavelength file ({file_nwl}) " +\
-        f"and prior ({prior_nwl})."
 
+    if prior_nwl != file_nwl:
+        logger.info("prior wavelengths and surface model wavelengths do not match running surface_model.py")
+        surface_model(surface_config_file, wavelength_file, surface_file)
+    else:
+        logger.info('prior wavelengths and surface model wavelengths match using', surface_file)
+
+    #more pointing to correct files
     fwd_surface["wavelength_file"] = str(wavelength_file)
 
     radfile = outdir2 / "toa-radiance"
@@ -419,6 +435,7 @@ def do_hypertrace(isofit_config, wavelength_file, reflectance_file,
             logger.info("Skipping inversion because output exists.")
         else:
             logger.info("Starting inversion.")
+
             try:
                 do_inverse(
                     copy.deepcopy(isofit_inv), radfile, est_refl_file,
