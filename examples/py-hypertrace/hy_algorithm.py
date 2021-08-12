@@ -233,24 +233,6 @@ def do_aquatic_algorithm(outdir2: pathlib.Path,
                          algorithm_file: pathlib.Path,
                          est_refl_file: pathlib.Path):
 
-    logger.info("INSIDE aquatic algorithm function")
-
-    return
-
-
-import numpy as np
-
-
-def find_nearest(array, value):
-    array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return array[idx]
-
-
-def do_aquatic_algorithm(outdir2: pathlib.Path,
-                         algorithm_file: pathlib.Path,
-                         est_refl_file: pathlib.Path):
-
     # Load reflectance
     image = sp.open_image(str(est_refl_file) + ".hdr")
     image_open = image.open_memmap(writable=True)
