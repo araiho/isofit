@@ -20,6 +20,7 @@ from isofit.core.isofit import Isofit
 from isofit.core.fileio import IO
 from isofit.utils import empirical_line, segment, extractions, surface_model
 from isofit.utils.apply_oe import write_modtran_template
+from isofit.core.common import envi_header
 
 logger = logging.getLogger(__name__)
 
@@ -402,7 +403,7 @@ def do_hypertrace(isofit_config,
         cov = calmat["Covariance"]
         cov_l = np.linalg.cholesky(cov)
         cov_wl = np.squeeze(calmat["wavelengths"])
-        rad_img = sp.open_image(str(radfile) + ".hdr")
+        rad_img = sp.open_image(envi_header(str(radfile)))
         rad_wl = rad_img.bands.centers
         del rad_img
         for ical in range(n_calibration_draws):
@@ -501,7 +502,7 @@ def do_inverse(isofit_inv: dict,
             logger.info("Skipping segmentation and extraction because files exist.")
         else:
             logger.info("Fixing any radiance values slightly less than zero...")
-            rad_img = sp.open_image(str(radfile) + ".hdr")
+            rad_img = sp.open_image(envi_header(str(radfile)))
             rad_m = rad_img.open_memmap(writable=True)
             nearzero = np.logical_and(rad_m < 0, rad_m > -2)
             rad_m[nearzero] = 0.0001
@@ -560,8 +561,8 @@ def sample_calibration_uncertainty(input_file: pathlib.Path,
                                    cov_wl: np.ndarray,
                                    rad_wl: np.ndarray,
                                    bias_scale=1.0):
-    input_file_hdr = str(input_file) + ".hdr"
-    output_file_hdr = str(output_file) + ".hdr"
+    input_file_hdr = envi_header(str(input_file))
+    output_file_hdr = envi_header(str(output_file))
     shutil.copy(input_file, output_file)
     shutil.copy(input_file_hdr, output_file_hdr)
 
