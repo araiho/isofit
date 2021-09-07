@@ -7,6 +7,7 @@ import pathlib
 import json
 import shutil
 import logging
+import os
 
 import numpy as np
 import spectral as sp
@@ -312,19 +313,22 @@ def do_hypertrace(isofit_config,
 
     # Check that prior and wavelength file have the same dimensions
     # If not, run surface_model
-    prior = loadmat(mkabs(surface_file))
-    prior_wl = prior["wl"][0]
-    prior_nwl = len(prior_wl)
-    file_wl = np.loadtxt(wavelength_file)
-    file_nwl = file_wl.shape[0]
-
-    if prior_nwl != file_nwl:
-        logger.info("prior wavelengths and surface model wavelengths do not match running surface_model.py")
-        surface_model(surface_config_file, wavelength_file, surface_file)
+    if os.path.isfile(surface_file):
+        prior = loadmat(mkabs(surface_file))
+        prior_wl = prior["wl"][0]
+        prior_nwl = len(prior_wl)
+        file_wl = np.loadtxt(wavelength_file)
+        file_nwl = file_wl.shape[0]
+        if prior_nwl != file_nwl:
+            logger.info("prior wavelengths and surface model wavelengths do not match running surface_model.py")
+            surface_model(surface_config_file, wavelength_file, surface_file)
+        else:
+            logger.info('prior wavelengths and surface model wavelengths match using', surface_file)
     else:
-        logger.info('prior wavelengths and surface model wavelengths match using', surface_file)
+        logger.info("surface model file do not exist running surface_model.py")
+        surface_model(surface_config_file, wavelength_file, surface_file)
 
-    #more pointing to correct files
+        # more pointing to correct files
     fwd_surface["wavelength_file"] = str(wavelength_file)
 
     radfile = outdir2 / "toa-radiance"
