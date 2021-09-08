@@ -63,17 +63,24 @@ def do_vegetation_algorithm(outdir2: pathlib.Path,
     sw = np.asarray(wavelengths)
     swy = sw.astype(np.float)
 
-    fwhm = np.ones(sw.shape) * 10
+    fwhm = np.ones(len(model_waves)) * 10
     # print(model_waves)
 
     # reflectance
     imagem = image.open_memmap(writable=True)
     imagem_resampled = np.zeros(shape=(imagem.shape[0], imagem.shape[1], len(model_waves)))  # hard coded! was 10,10,36
 
+    print(len(swy))
+    print('NEXT')
+    print(len(model_waves))
+    print('NEXT')
+
+    print(imagem.shape)
+
     # resample to match
     for pxlsx in range(0, imagem.shape[0]):
         for pxlsy in range(0, imagem.shape[1]):
-            imagem_resampled[pxlsx, pxlsy, :] = resample_spectrum(imagem[pxlsx, pxlsy, :], swy, model_waves, fwhm)
+            imagem_resampled[pxlsx, pxlsy, :] = resample_spectrum(imagem[pxlsx, pxlsy, :], swy, model_waves, fwhm)  # image, image, model, model
 
     # idx = range(0,36) #need to match wavelengths to model_waves here
     # print(imagem.shape)
@@ -145,8 +152,6 @@ def do_mineral_algorithm(outdir2: pathlib.Path,
     image = sp.open_image(str(est_refl_file) + ".hdr")
     image_open = image.open_memmap(writable=True)
     x = np.asarray(image_open)
-    # print(x)
-
     # wavelengths #old wl
     wavelengths = image.metadata['wavelength']
     sw = np.asarray(wavelengths)
@@ -158,6 +163,7 @@ def do_mineral_algorithm(outdir2: pathlib.Path,
     # Load a library spectrum
     ldata = np.loadtxt(algorithm_file, delimiter=' ', skiprows=1)  # not sure if we want the algorithm file here or what
     lrfl = resample_spectrum(ldata[:, 1], ldata[:, 0] * 1000.0, swy, fwhm)
+    print(lrfl)
 
     lib = lrfl
 
@@ -192,8 +198,6 @@ def do_mineral_algorithm(outdir2: pathlib.Path,
 
     x, wlf, lib = x[:, :, i1:i2], swy[i1:i2], lib[i1:i2];
 
-    print(wlf)
-
     # Continuum level
     ends = np.array([0, -1], dtype=np.int32)
 
@@ -203,6 +207,7 @@ def do_mineral_algorithm(outdir2: pathlib.Path,
     lctmr = lib / lctm - 1.0
 
     libfit = np.zeros(shape=(x.shape[0], x.shape[1], wlf.shape[0]))
+    scale_save = np.zeros(shape=(x.shape[0], x.shape[1]))
 
     for pxlsx in range(0, x.shape[0]):
         for pxlsy in range(0, x.shape[1]):
@@ -219,14 +224,19 @@ def do_mineral_algorithm(outdir2: pathlib.Path,
 
             libfit[pxlsx, pxlsy, :] = (1.0 + scale.x * lctmr) * xctm;
 
+            scale_save[pxlsx, pxlsy] = scale.fun
+
     # return wlf, libfit, scale.x
 
-    print(libfit.shape)
-    libfit2 = libfit.reshape((-1, libfit.shape[2]), order='F')
-    print(libfit2.shape)
+    # print(scale_save)
+
+    print(scale_save)
+
+    #libfit2 = libfit.reshape((-1,libfit.shape[2]),order = 'F')
+
     mineral_file_name = os.path.join(outdir2, "mineral.csv")
-    colnames = list(range(0, wlf.shape[0]))
-    np.savetxt(mineral_file_name, libfit2, header=str(colnames), delimiter=",", comments='')
+    colnames = list(range(0, x.shape[1]))
+    np.savetxt(mineral_file_name, scale_save, header=str(colnames), delimiter=",", comments='')
 
 
 def do_aquatic_algorithm(outdir2: pathlib.Path,
@@ -253,7 +263,7 @@ def do_aquatic_algorithm(outdir2: pathlib.Path,
 
             solzen = 45  # solzens[col] #hard coded fix later
             x0 = [0 for q in lut.band_names]
-            bounds = [(0, 1000) for q in lut.band_names]
+            bounds = [(0, 790) for q in lut.band_names]
             res = minimize(err, x0, args=(x[pxlsx, pxlsy, :], lut, solzen),
                            method='tnc', tol=1e-9, bounds=bounds)
             xbest = res.x
