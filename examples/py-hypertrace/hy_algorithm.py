@@ -8,6 +8,7 @@ import json
 import shutil
 import logging
 import os.path
+import pandas
 
 import numpy as np
 import spectral as sp
@@ -90,19 +91,19 @@ def do_vegetation_algorithm(outdir2: pathlib.Path,
     # rolling window over 10nm or nearest
 
     # Assign wavelength resampling settings
-    #image.resampler['out_waves'] = model_waves
-    #image.resampler['type'] = 'cubic'
+    # image.resampler['out_waves'] = model_waves
+    # image.resampler['type'] = 'cubic'
 
     # Generate header
-    #trait_header = image.get_header()
-    #trait_header['bands']= 2
-    #trait_header['data type'] = 4
-    #trait_header['wavelength']= []
-    #trait_header['fwhm']= []
+    # trait_header = image.get_header()
+    # trait_header['bands']= 2
+    # trait_header['data type'] = 4
+    # trait_header['wavelength']= []
+    # trait_header['fwhm']= []
     # trait_header['band names'] = ["%s_mean" % trait_name,
     #                          "%s_std" % trait_name]
 
-    #writer = iIO.write_spectrum(trait_file_name)
+    # writer = iIO.write_spectrum(trait_file_name)
     # iterator = image.iterate(by = 'chunk',
     #                     chunk_size = (500,500),resample=True)
 
@@ -188,7 +189,7 @@ def do_mineral_algorithm(outdir2: pathlib.Path,
     # start fitting
     #
 
-    #x[np.logical_not(np.isfinite(x))] = 0;
+    # x[np.logical_not(np.isfinite(x))] = 0;
     swy[np.logical_not(np.isfinite(swy))] = 0
     lib[np.logical_not(np.isfinite(lib))] = 0
 
@@ -205,6 +206,9 @@ def do_mineral_algorithm(outdir2: pathlib.Path,
     p = np.polyfit(wlf[ends], lib[ends], 1)
     lctm = np.polyval(p, wlf)
     lctmr = lib / lctm - 1.0
+
+    print(lib)
+    print('LIB')
 
     libfit = np.zeros(shape=(x.shape[0], x.shape[1], wlf.shape[0]))
     scale_save = np.zeros(shape=(x.shape[0], x.shape[1]))
@@ -232,7 +236,7 @@ def do_mineral_algorithm(outdir2: pathlib.Path,
 
     print(scale_save)
 
-    #libfit2 = libfit.reshape((-1,libfit.shape[2]),order = 'F')
+    # libfit2 = libfit.reshape((-1,libfit.shape[2]),order = 'F')
 
     mineral_file_name = os.path.join(outdir2, "mineral.csv")
     colnames = list(range(0, x.shape[1]))
@@ -247,7 +251,7 @@ def do_aquatic_algorithm(outdir2: pathlib.Path,
     image = sp.open_image(str(est_refl_file) + ".hdr")
     image_open = image.open_memmap(writable=True)
     x = image_open
-    #x = np.asarray(image_open)
+    # x = np.asarray(image_open)
 
     # wavelengths #old wl
     wavelengths = image.metadata['wavelength']
@@ -277,6 +281,101 @@ def do_aquatic_algorithm(outdir2: pathlib.Path,
     output2 = output.reshape((-1, output.shape[2]), order='F')
     aqua_file_name = os.path.join(outdir2, "aquatic.csv")
     np.savetxt(aqua_file_name, output2, delimiter=",", header='vwind,chla,cdom,mineral,rmse', comments='')
+
+
+def do_snow_algorithm(outdir2: pathlib.Path,
+                      algorithm_file: pathlib.Path,
+                      est_refl_file: pathlib.Path):
+
+    # Load reflectance
+    image = sp.open_image(str(est_refl_file) + ".hdr")
+    image_open = image.open_memmap(writable=True)
+    x = np.asarray(image_open)
+    # wavelengths #old wl
+    wavelengths = image.metadata['wavelength']
+    sw = np.asarray(wavelengths)
+    swy = sw.astype(np.float)
+
+    fwhm = np.ones(sw.shape) * 10
+
+    # reference
+    # Load a library spectrum
+    ldata = pandas.read_csv(algorithm_file)  # not sure if we want the algorithm file here or what
+    # lrfl = resample_spectrum(ldata[:, 1], ldata[:, 0] * 1000.0, swy, fwhm)
+    # print(lrfl)
+
+    lib1 = np.asarray(ldata)
+    lib = np.transpose(lib1)
+
+    # range #we will probably want to define these in configs instead. just not sure because these are mineral algo specific.
+    rng = [890, 1710]
+
+    #
+    # start fitting
+    #
+
+    # x[np.logical_not(np.isfinite(x))] = 0;
+    swy[np.logical_not(np.isfinite(swy))] = 0
+    lib[np.logical_not(np.isfinite(lib))] = 0
+
+    # subset to our range of interest
+    i1 = np.argmin(abs(swy - rng[0]))
+    i2 = np.argmin(abs(swy - rng[-1]))
+    print(i1)
+    print(i2)
+
+    x, wlf, lib = x[:, :, i1:i2], swy[i1:i2], lib[:, i1:i2];
+
+    print(lib.shape)
+
+    # Continuum level
+    ends = np.array([0, -1], dtype=np.int32)
+    print(ends)
+
+    # Continuum of library
+    p = np.polyfit(wlf[ends], lib[ends], 1)
+    lctm = np.polyval(p, wlf)
+    lctmr = lib / lctm - 1.0
+
+    libfit = np.zeros(shape=(x.shape[0], x.shape[1], lib.shape[0], wlf.shape[0]))
+    scale_save = np.zeros(shape=(x.shape[0], x.shape[1]))
+    scale_vec = np.zeros(shape=(lib.shape[0]))
+
+    for pxlsx in range(0, x.shape[0]):
+        for pxlsy in range(0, x.shape[1]):
+            for libx in range(0, lib.shape[0]):
+
+                p = np.polyfit(wlf[ends], x[pxlsx, pxlsy, ends], 1)
+                xctm = np.polyval(p, wlf)
+                xctmr = x[pxlsx, pxlsy, :] / xctm - 1.0;
+
+            # Fit a scaling term
+                def err(scale):
+                    return sum(pow(scale * lctmr[libx, :] - xctmr, 2))
+
+                scale = minimize_scalar(err, bracket=[0, 1])
+
+                libfit[pxlsx, pxlsy, libx, :] = (1.0 + scale.x * lctmr[libx, :]) * xctm;
+
+                print(libfit)
+
+                scale_vec[libx] = mean(libfit)
+
+            print(scale_vec)
+            scale_save[pxlsx, pxlsy] = np.argmin(scale_vec)
+
+    # return wlf, libfit, scale.x
+
+    # print(scale_save)
+
+    print(scale_save)
+
+    # libfit2 = libfit.reshape((-1,libfit.shape[2]),order = 'F')
+
+    snow_file_name = os.path.join(outdir2, "snow.csv")
+    colnames = list(range(0, x.shape[1]))
+    np.savetxt(snow_file_name, scale_save, header=str(colnames), delimiter=",", comments='')
+
 
 class LUT:
 
