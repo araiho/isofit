@@ -1,11 +1,11 @@
 {
     "wavelength_file": "/Users/araiho/isofit/examples/py-hypertrace/hypertrace-data/wavelengths/aviris-ng.txt",
-    "reflectance_file": "./hypertrace-data/reflectance/simulated-aquatic/simulated-aquatic.envi",
+    "reflectance_file": "./hypertrace-data/reflectance/simulated-aquatic/simulated-aquatic-spec-res1.envi",
     "surface_config_file": "./hypertrace-data/other/emit-prior-inputs/surface_config_EMIT.json",
     "rtm_template_file": "/dev/null",
     "lutdir": "./luts/sRTMnet",
-    "outdir": "./output-hydrolight/example-hydrolight",
-    "outfile": "./output-hydrolight/example-hydrolight.nc",
+    "outdir": "./output-hydrolight-trade/simulated-aod",
+    "outfile": "./output-hydrolight-trade/simulated-aod.nc",
     "algorithm": {
         "type": "aquatic",
         "file": "./hypertrace-data/algorithm/aquatic/case2_water.mat"
@@ -13,7 +13,7 @@
     "isofit": {
         "forward_model": {
             "instrument": {
-                "SNR": 300,
+                "SNR": 2000,
                 "integrations": 1,
                 "unknowns":{
                     "uncorrelated_radiometric_uncertainty": 0.01
@@ -29,14 +29,14 @@
                 },
                 "statevector": {
                 "H2OSTR": {
-                    "bounds": [0.5, 1.0],
+                    "bounds": [0.5, 2.0],
                     "scale": 0.01,
                     "prior_sigma": 100.0,
                     "prior_mean": 1.0,
                     "init": 0.75
                  },
                  "AOT550": {
-                     "bounds": [0.0, 0.1],
+                     "bounds": [0.0, 0.5],
                      "scale": 0.1,
                      "prior_mean": 0.05,
                      "prior_sigma": 100.0,
@@ -46,7 +46,7 @@
                 "unknowns": {"H2O_ABSCO": 0.01},
                 "radiative_transfer_engines": {
                     "vswir": {
-                        "engine_name": "simulated_modtran",
+                        "engine_name": "sRTMnet",
                         "engine_base_dir": "./6sv-2.1",
                         "aerosol_template_path": "../../data/aerosol_template.json",
                         "earth_sun_distance_file": "../../data/earth_sun_distance.txt",
@@ -59,13 +59,42 @@
             }
         },
         "implementation": {
-            "inversion": {
-                "windows": [[400, 1000]]
-            }
-        }
+        "inversion": {
+            "integration_grid": {
+                "AOT550": [
+                    0.011,
+                    0.49
+                ],
+                "H2OSTR": [
+                    1.2927,
+                    1.5146
+                ]
+            },
+            "inversion_grid_as_preseed": true,
+            "windows": [
+                [
+                    380.0,
+                    1340.0
+                ],
+                [
+                    1450,
+                    1800.0
+                ],
+                [
+                    1970.0,
+                    2500.0
+                ]
+            ]
+        },
+        "n_cores": 8,
+        "ray_temp_dir": "/tmp/ray"
+    }
     },
     "hypertrace": {
-        "atm_aod_h2o": [["ATM_MIDLAT_SUMMER", 0.01, 1.0]],
+        "atm_aod_h2o": [["ATM_MIDLAT_SUMMER", 0.01, 1.0],
+            ["ATM_MIDLAT_SUMMER", 0.05, 1.0],
+            ["ATM_MIDLAT_SUMMER", 0.1, 1.0],
+            ["ATM_MIDLAT_SUMMER", 0.2, 1.0]],
         "inversion_mode": ["inversion"],
         "noisefile": ["./hypertrace-data/noise/noise_coeff_sbg_cbe0.txt"],
         "outdir_scheme": ["hash"]
