@@ -20,7 +20,6 @@ from isofit.core.isofit import Isofit
 from isofit.core.fileio import IO
 from isofit.utils import empirical_line, segment, extractions, surface_model
 from isofit.utils.apply_oe import write_modtran_template
-from isofit.core.common import envi_header
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +232,7 @@ def do_hypertrace(isofit_config,
                 ))
             open(lutdir2 / "prescribed_geom", "w").write(f"99:99:99   {solar_zenith}  {solar_azimuth}")
 
-        elif atmospheric_rtm in ("modtran", "sRTMnet"):
+        elif atmospheric_rtm in ("modtran", "simulated_modtran"):
             loctag = f"atm_{atmosphere_type}__" +\
                 f"alt_{observer_altitude_km:.2f}__" +\
                 f"doy_{dayofyear:.0f}__" +\
@@ -266,7 +265,7 @@ def do_hypertrace(isofit_config,
             write_modtran_template(**mt_params)
 
             vswir_conf["modtran_template_path"] = str(mt_params["output_file"])
-            if atmospheric_rtm == "sRTMnet":
+            if atmospheric_rtm == "simulated_modtran":
                 vswir_conf["interpolator_base_path"] = str(lutdir2 / "sRTMnet_interpolator")
                 # These need to be absolute file paths
                 for path in ["emulator_aux_file", "emulator_file",
@@ -403,7 +402,7 @@ def do_hypertrace(isofit_config,
         cov = calmat["Covariance"]
         cov_l = np.linalg.cholesky(cov)
         cov_wl = np.squeeze(calmat["wavelengths"])
-        rad_img = sp.open_image(envi_header(str(radfile)))
+        rad_img = sp.open_image(str(radfile) + ".hdr")
         rad_wl = rad_img.bands.centers
         del rad_img
         for ical in range(n_calibration_draws):
@@ -465,9 +464,6 @@ def do_hypertrace(isofit_config,
 
         if algorithm_type == "aquatic":
             do_aquatic_algorithm(outdir2, algorithm_file, est_refl_file)
-
-        if algorithm_type == "snow":
-            do_snow_algorithm(outdir2, algorithm_file, est_refl_file)
     else:
         logger.info("No algorithim file present.")
 
@@ -505,7 +501,7 @@ def do_inverse(isofit_inv: dict,
             logger.info("Skipping segmentation and extraction because files exist.")
         else:
             logger.info("Fixing any radiance values slightly less than zero...")
-            rad_img = sp.open_image(envi_header(str(radfile)))
+            rad_img = sp.open_image(str(radfile) + ".hdr")
             rad_m = rad_img.open_memmap(writable=True)
             nearzero = np.logical_and(rad_m < 0, rad_m > -2)
             rad_m[nearzero] = 0.0001
@@ -564,8 +560,8 @@ def sample_calibration_uncertainty(input_file: pathlib.Path,
                                    cov_wl: np.ndarray,
                                    rad_wl: np.ndarray,
                                    bias_scale=1.0):
-    input_file_hdr = envi_header(str(input_file))
-    output_file_hdr = envi_header(str(output_file))
+    input_file_hdr = str(input_file) + ".hdr"
+    output_file_hdr = str(output_file) + ".hdr"
     shutil.copy(input_file, output_file)
     shutil.copy(input_file_hdr, output_file_hdr)
 

@@ -9,6 +9,7 @@ import shutil
 import logging
 import os.path
 import pandas
+import math
 
 import numpy as np
 import spectral as sp
@@ -81,7 +82,8 @@ def do_vegetation_algorithm(outdir2: pathlib.Path,
     # resample to match
     for pxlsx in range(0, imagem.shape[0]):
         for pxlsy in range(0, imagem.shape[1]):
-            imagem_resampled[pxlsx, pxlsy, :] = resample_spectrum(imagem[pxlsx, pxlsy, :], swy, model_waves, fwhm)  # image, image, model, model
+            resp_spec = resample_spectrum(imagem[pxlsx, pxlsy, :], swy, model_waves, fwhm)  # image, image, model, model
+            imagem_resampled[pxlsx, pxlsy, :] = resp_spec / math.sqrt(sum(resp_spec ** 2))
 
     # idx = range(0,36) #need to match wavelengths to model_waves here
     # print(imagem.shape)
@@ -301,8 +303,13 @@ def do_snow_algorithm(outdir2: pathlib.Path,
     # reference
     # Load a library spectrum
     ldata = pandas.read_csv(algorithm_file)  # not sure if we want the algorithm file here or what
-    # lrfl = resample_spectrum(ldata[:, 1], ldata[:, 0] * 1000.0, swy, fwhm)
-    # print(lrfl)
+    print('wavelengths')
+    ldata1 = np.asarray(ldata)
+    print(ldata1[0, :])
+    print('wavelengths')
+
+    lrfl = resample_spectrum(ldata[:, 1], ldata[:, 0] * 1000.0, swy, fwhm)
+    print(lrfl)
 
     lib1 = np.asarray(ldata)
     lib = np.transpose(lib1)
