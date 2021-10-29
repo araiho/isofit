@@ -27,13 +27,12 @@ logger = logging.getLogger(__name__)
 def do_hypertrace(isofit_config,
                   surface_config_file,
                   wavelength_file,
-                  reflectance_file,
                   algorithm_file,
                   algorithm_type,
                   rtm_template_file,
                   lutdir,
                   outdir,
-                  noisefile=None, snr=300,
+                  noisefile=None, snr=None,
                   aod=0.1, h2o=1.0, atmosphere_type="ATM_MIDLAT_WINTER",
                   atm_aod_h2o=None,
                   solar_zenith=0, observer_zenith=0,
@@ -52,7 +51,9 @@ def do_hypertrace(isofit_config,
                   create_lut=True,
                   outdir_scheme="nested",
                   rayconfig=None,
-                  overwrite=False):
+                  overwrite=False,
+                  reflectance_file=None,
+                  crossprod_experiment=None):
     """One iteration of the hypertrace workflow.
 
     Required arguments:
@@ -65,7 +66,8 @@ def do_hypertrace(isofit_config,
         to be an ENVI-formatted binary reflectance file, and this path is to the
         associated header file (`.hdr`), not the image file itself (following
         the convention of the `spectral` Python library, which will be used to
-        read this file).
+        read this file). 9/24/21: Ann moved to hypertrace config block to run 
+        snr experiments over correct image or apply experiments to multiple images.
 
         rtm_template_file: Path to the atmospheric RTM template. For LibRadtran,
         note that this is slightly different from the Isofit template in that
@@ -152,6 +154,9 @@ def do_hypertrace(isofit_config,
       regardless of existing files.
     """
 
+    if reflectance_file is None:
+        logger.error('No reflectance_file found.')
+
     outdir = mkabs(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -163,6 +168,9 @@ def do_hypertrace(isofit_config,
     # changes propagate to the `forward_settings` object below.
     forward_settings = isofit_common["forward_model"]
     instrument_settings = forward_settings["instrument"]
+    # adding if in case we want to write in snr as hypertrace arguement
+    if snr is None:
+        snr = instrument_settings["SNR"]
 
     if rayconfig is not None:
         logger.info("Configuring Ray")
@@ -181,6 +189,7 @@ def do_hypertrace(isofit_config,
 
     # check noisefile
     if noisefile is not None:
+        logger.info("Using noisefile. Overriding set SNR if applicable. Noisefile =", noisefile)
         noisetag = f"noise_{pathlib.Path(noisefile).stem}"
         if "SNR" in instrument_settings:
             instrument_settings.pop("SNR")
@@ -188,6 +197,12 @@ def do_hypertrace(isofit_config,
         if "integrations" not in instrument_settings:
             instrument_settings["integrations"] = 1
     elif snr is not None:
+        logger.info("Using set SNR. No noisefile available. SNR = ", snr)
+        noisetag = f"snr_{snr}"
+        instrument_settings["SNR"] = snr
+    elif snr is None:
+        logger.info("Using default SNR=300. No noisefile or set SNR found in configs.")
+        snr = 300
         noisetag = f"snr_{snr}"
         instrument_settings["SNR"] = snr
 
@@ -232,7 +247,7 @@ def do_hypertrace(isofit_config,
                 ))
             open(lutdir2 / "prescribed_geom", "w").write(f"99:99:99   {solar_zenith}  {solar_azimuth}")
 
-        elif atmospheric_rtm in ("modtran", "simulated_modtran"):
+        elif atmospheric_rtm in ("modtran", "sRTMnet"):
             loctag = f"atm_{atmosphere_type}__" +\
                 f"alt_{observer_altitude_km:.2f}__" +\
                 f"doy_{dayofyear:.0f}__" +\
@@ -243,8 +258,18 @@ def do_hypertrace(isofit_config,
                 f"elev_{elevation_km:.2f}"
             lrttag = loctag + "/" + angtag
             lutdir2 = lutdir / lrttag
+
+            # Removing look up table if it already exists
+            # so experiments don't get messed up if they change
+            # resolutions. Certainly, increases computation time.
+            lutdirbase = lutdir / loctag
+            if(lutdirbase.exists()):
+                logger.info("Removing", lutdirbase)
+                shutil.rmtree(lutdirbase)
+
             lutdir2.mkdir(parents=True, exist_ok=True)
             lrtfile = lutdir2 / "modtran-template-h2o.json"
+
             mt_params = {
                 "atmosphere_type": atmosphere_type,
                 "fid": "hypertrace",
@@ -265,7 +290,7 @@ def do_hypertrace(isofit_config,
             write_modtran_template(**mt_params)
 
             vswir_conf["modtran_template_path"] = str(mt_params["output_file"])
-            if atmospheric_rtm == "simulated_modtran":
+            if atmospheric_rtm == "sRTMnet":
                 vswir_conf["interpolator_base_path"] = str(lutdir2 / "sRTMnet_interpolator")
                 # These need to be absolute file paths
                 for path in ["emulator_aux_file", "emulator_file",

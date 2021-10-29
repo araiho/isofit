@@ -10,6 +10,7 @@ import shutil
 import ray
 import uuid
 import pathlib
+import math
 
 from hypertrace import do_hypertrace, mkabs
 
@@ -51,7 +52,7 @@ if consolidate_output:
     logger.info("Consolidating output in `%s`", outfile)
 
 wavelength_file = mkabs(config["wavelength_file"])
-reflectance_file = mkabs(config["reflectance_file"])
+#reflectance_file = mkabs(config["reflectance_file"])
 
 algorithm_config = config["algorithm"]
 algorithm_file = mkabs(algorithm_config["file"])
@@ -85,39 +86,55 @@ for key in ["lut_path", "template_file", "engine_base_dir"]:
         vswir_settings[key] = str(mkabs(vswir_settings[key]))
 
 # Create iterable config permutation object
-ht_iter = list(itertools.product(*hypertrace_config.values()))
+cross_arg = str(hypertrace_config["crossprod_experiment"])
 
-if consolidate_output:
-    if outfile.exists():
-        logger.info("Using to existing output file: %s", outfile)
-    else:
-        logger.info("Creating new output file: %s", outfile)
-        nrow, ncol, *_ = sp.open_image(str(reflectance_file) + ".hdr").shape
-        waves = np.loadtxt(wavelength_file)[:, 1]
-        if np.mean(waves) < 100:
-            waves = waves * 1000
-        nwaves = waves.shape[0]
-        nht = len(ht_iter)
-        # Preallocate "blank" dataset full of zeros, but with the right dimensions
-        xr.Dataset(
-            {
-                "toa_radiance": (["sample", "line", "band", "hypertrace"],
-                                 dask.array.empty((nrow, ncol, nwaves, nht), dtype='f')),
-                "estimated_reflectance": (["sample", "line", "band", "hypertrace"],
-                                          dask.array.empty((nrow, ncol, nwaves, nht), dtype='f')),
-                "estimated_state": (["sample", "line", "statevec", "hypertrace"],
-                                    dask.array.empty((nrow, ncol, nwaves + 2, nht), dtype='f')),
-                "posterior_uncertainty": (["sample", "line", "statevec", "hypertrace"],
-                                          dask.array.empty((nrow, ncol, nwaves + 2, nht), dtype='f')),
-                "completed": (["hypertrace"], dask.array.zeros((nht), dtype='?'))
-            },
-            coords={
-                "band": waves,
-                "statevec": np.append([f"RFL_{w:.2f}" for w in waves], ["AOT550", "H2OSTR"]),
-                "hypertrace": [json.dumps(ht) for ht in ht_iter]
-            },
-            attrs={"hypertrace_config": json.dumps(config)}
-        ).to_netcdf(outfile, mode='w', engine='h5netcdf')
+print(cross_arg)
+
+# if cross_arg:
+#     ht_iter = list(itertools.product(*hypertrace_config.values()))
+# else:
+    #long way to get only the diagonal combinations
+ht_iter_all = list(itertools.product(*hypertrace_config.values())) 
+perm_last = int(len(ht_iter_all))
+s = int(math.sqrt(perm_last))
+x = np.arange(perm_last).reshape(s,s)
+d = np.diag(x)
+ht_iter = [ht_iter_all[i] for i in d]
+
+
+
+
+# if consolidate_output:
+#     if outfile.exists():
+#         logger.info("Using to existing output file: %s", outfile)
+#     else:
+#         logger.info("Creating new output file: %s", outfile)
+#         nrow, ncol, *_ = sp.open_image(str(reflectance_file) + ".hdr").shape
+#         waves = np.loadtxt(wavelength_file)[:, 1]
+#         if np.mean(waves) < 100:
+#             waves = waves * 1000
+#         nwaves = waves.shape[0]
+#         nht = len(ht_iter)
+#         # Preallocate "blank" dataset full of zeros, but with the right dimensions
+#         xr.Dataset(
+#             {
+#                 "toa_radiance": (["sample", "line", "band", "hypertrace"],
+#                                  dask.array.empty((nrow, ncol, nwaves, nht), dtype='f')),
+#                 "estimated_reflectance": (["sample", "line", "band", "hypertrace"],
+#                                           dask.array.empty((nrow, ncol, nwaves, nht), dtype='f')),
+#                 "estimated_state": (["sample", "line", "statevec", "hypertrace"],
+#                                     dask.array.empty((nrow, ncol, nwaves + 2, nht), dtype='f')),
+#                 "posterior_uncertainty": (["sample", "line", "statevec", "hypertrace"],
+#                                           dask.array.empty((nrow, ncol, nwaves + 2, nht), dtype='f')),
+#                 "completed": (["hypertrace"], dask.array.zeros((nht), dtype='?'))
+#             },
+#             coords={
+#                 "band": waves,
+#                 "statevec": np.append([f"RFL_{w:.2f}" for w in waves], ["AOT550", "H2OSTR"]),
+#                 "hypertrace": [json.dumps(ht) for ht in ht_iter]
+#             },
+#             attrs={"hypertrace_config": json.dumps(config)}
+#         ).to_netcdf(outfile, mode='w', engine='h5netcdf')
 
 # Start Ray once
 rayconfig = None
@@ -135,10 +152,10 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
     for key, value in zip(hypertrace_config.keys(), ht):
         argd[key] = value
     logger.info("Running config %d of %d: %s", iht + 1, len(ht_iter), argd)
+
     ht_outdir = do_hypertrace(isofit_config,
                               surface_config_file,
                               wavelength_file,
-                              reflectance_file,
                               algorithm_file,
                               algorithm_type,
                               rtm_template_file,
@@ -149,28 +166,28 @@ for ht, iht in zip(ht_iter, range(len(ht_iter))):
                               **argd)
 
     # Post process files here
-    if consolidate_output and ht_outdir is not None:
-        logger.info("Consolidating output from `%s`", str(ht_outdir))
-        with h5netcdf.File(outfile, 'r+') as dsz:
-            curr_ht = json.dumps(ht)
-            all_ht = dsz["hypertrace"][:]
-            iii = np.where([curr_ht == htstr for htstr in all_ht])
-            assert len(iii) < 2, f"Found {len(iii)} matching HT configs in outfile"
-            assert len(iii) > 0, "Found no matching HT configs in outfile"
-            dsz["completed"][iii] = True
+    # if consolidate_output and ht_outdir is not None:
+    #     logger.info("Consolidating output from `%s`", str(ht_outdir))
+    #     with h5netcdf.File(outfile, 'r+') as dsz:
+    #         curr_ht = json.dumps(ht)
+    #         all_ht = dsz["hypertrace"][:]
+    #         iii = np.where([curr_ht == htstr for htstr in all_ht])
+    #         assert len(iii) < 2, f"Found {len(iii)} matching HT configs in outfile"
+    #         assert len(iii) > 0, "Found no matching HT configs in outfile"
+    #         dsz["completed"][iii] = True
 
-            #import pdb; pdb.set_trace()
+    #         #import pdb; pdb.set_trace()
 
-            dsz["toa_radiance"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "toa-radiance.hdr"))[:, :, :]
+    #         dsz["toa_radiance"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "toa-radiance.hdr"))[:, :, :]
 
-            if not forward_only:
-                dsz["estimated_reflectance"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-reflectance.hdr"))[:, :, :]
-                dsz["estimated_state"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-state.hdr"))[:, :, :]
-                dsz["posterior_uncertainty"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "posterior-uncertainty.hdr"))[:, :, :]
-        if clean:
-            logger.info("Deleting output from `%s`", str(ht_outdir))
-            shutil.rmtree(ht_outdir)
-    else:
-        logger.info('not consolidating', str(ht_outdir))
+    #         if not forward_only:
+    #             dsz["estimated_reflectance"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-reflectance.hdr"))[:, :, :]
+    #             dsz["estimated_state"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "estimated-state.hdr"))[:, :, :]
+    #             dsz["posterior_uncertainty"][:, :, :, float(iii[0])] = sp.open_image(str(ht_outdir / "posterior-uncertainty.hdr"))[:, :, :]
+    #     if clean:
+    #         logger.info("Deleting output from `%s`", str(ht_outdir))
+    #         shutil.rmtree(ht_outdir)
+    # else:
+    #     logger.info('not consolidating', str(ht_outdir))
 
 logger.info("Workflow completed successfully.")

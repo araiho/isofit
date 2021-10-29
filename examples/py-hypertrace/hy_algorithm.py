@@ -62,6 +62,7 @@ def do_vegetation_algorithm(outdir2: pathlib.Path,
     # Load reflectance
     image = sp.open_image(str(est_refl_file) + ".hdr")
     wavelengths = image.metadata['wavelength']
+    print(wavelengths)
     sw = np.asarray(wavelengths)
     swy = sw.astype(np.float)
 

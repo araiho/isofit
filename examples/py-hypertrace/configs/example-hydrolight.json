@@ -1,11 +1,10 @@
 {
-    "wavelength_file": "/Users/araiho/isofit/examples/py-hypertrace/hypertrace-data/wavelengths/aviris-ng.txt",
-    "reflectance_file": "./hypertrace-data/reflectance/simulated-aquatic/simulated-aquatic-spec-res1.envi",
+    "wavelength_file": "/Users/araiho/isofit/examples/py-hypertrace/hypertrace-data/wavelengths/hydrolight/aviris-ng1.txt",
     "surface_config_file": "./hypertrace-data/other/emit-prior-inputs/surface_config_EMIT.json",
     "rtm_template_file": "/dev/null",
     "lutdir": "./luts/sRTMnet",
-    "outdir": "./output-hydrolight-trade/simulated-aod",
-    "outfile": "./output-hydrolight-trade/simulated-aod.nc",
+    "outdir": "./output-hydrolight-trade/aod",
+    "outfile": "./output-hydrolight-trade/aod.nc",
     "algorithm": {
         "type": "aquatic",
         "file": "./hypertrace-data/algorithm/aquatic/case2_water.mat"
@@ -13,7 +12,6 @@
     "isofit": {
         "forward_model": {
             "instrument": {
-                "SNR": 2000,
                 "integrations": 1,
                 "unknowns":{
                     "uncorrelated_radiometric_uncertainty": 0.01
@@ -91,12 +89,17 @@
     }
     },
     "hypertrace": {
+        "reflectance_file": ["./hypertrace-data/reflectance/simulated-aquatic/simulated-aquatic-spec-res1.envi"],
+        "crossprod_experiment": ["True"],
         "atm_aod_h2o": [["ATM_MIDLAT_SUMMER", 0.01, 1.0],
             ["ATM_MIDLAT_SUMMER", 0.05, 1.0],
             ["ATM_MIDLAT_SUMMER", 0.1, 1.0],
-            ["ATM_MIDLAT_SUMMER", 0.2, 1.0]],
+            ["ATM_MIDLAT_SUMMER", 0.15, 1.0],
+            ["ATM_MIDLAT_SUMMER", 0.2, 1.0],
+            ["ATM_MIDLAT_SUMMER", 0.25, 1.0],
+            ["ATM_MIDLAT_SUMMER", 0.3, 1.0]],
         "inversion_mode": ["inversion"],
-        "noisefile": ["./hypertrace-data/noise/noise_coeff_sbg_cbe0.txt"],
+        "snr": [300],
         "outdir_scheme": ["hash"]
     }
 }

@@ -1,6 +1,5 @@
 {
     "wavelength_file": "./hypertrace-data/wavelengths/aviris-ng.txt",
-    "reflectance_file": "./hypertrace-data/reflectance/cuprite/cuprite_small.envi",
     "rtm_template_file": "/dev/null",
     "lutdir": "./luts/sRTMnet",
     "outdir": "./output-cuprite/example-cuprite",
@@ -66,6 +65,7 @@
     "hypertrace": {
         "atm_aod_h2o": [["ATM_MIDLAT_SUMMER", 0.01, 1.0]],
         "inversion_mode": ["inversion"],
+        "reflectance_file": "./hypertrace-data/reflectance/cuprite/cuprite_small.envi",
         "noisefile": ["./hypertrace-data/noise/noise_coeff_sbg_cbe0.txt"],
         "surface_file": ["./hypertrace-data/priors/aviris-ng/surface_EMIT.mat"],
         "outdir_scheme": ["hash"]
