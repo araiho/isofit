@@ -61,16 +61,22 @@ def spectral_resample_data(hypertrace_configs):
         strEnvi = [mod_string, str(ss), '.envi']
         envi_file = "".join(strEnvi)
 
-        print(newWaves[:, 1].astype(np.float32))
+        #TO DO: add overwrite arg so that you don't have to resample if you are just adjusting the configs
 
         envi.save_image(str(hdr_file), imagem_resampled, force=True, ext='.envi',
                         metadata={'wavelengths': newWaves[:, 1].astype(np.float32)})
 
         # edit configs to match new resolution
-        ht_configs['wavelength_file'] = strNewWaves
-        ht_configs['hypertrace']['reflectance_file'] = str(envi_file)
+        ht_configs['wavelength_file'] = "".join(strNewWaves)
+        ht_configs['hypertrace']['reflectance_file'] = [str(envi_file)]
+
+        instrument_output_file = './hypertrace-data/instruments/output'
+        noise_out = [instrument_output_file, '/', 'sbg_cbe_chromaD', '-specRes', str(ss), 'noisefile.txt']
+        output_noisefile = "".join(noise_out)
+
+        ht_configs['hypertrace']['noisefile'] = [output_noisefile]
 
         # write out configs for later
         config_out = ['./configs/', 'run_specRes', str(ss), '.json']
         config_outfile = "".join(config_out)
-        json.dump(ht_configs, open(config_outfile, "w"))
+        json.dump(ht_configs, open(config_outfile, "w"), indent=1)

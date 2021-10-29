@@ -1,5 +1,6 @@
 {
     "wavelength_file": "./hypertrace-data/wavelengths/aviris-ng.txt",
+    "surface_config_file": "./hypertrace-data/other/emit-prior-inputs/surface_config_EMIT.json",
     "rtm_template_file": "/dev/null",
     "lutdir": "./luts/sRTMnet",
     "outdir": "./output-cuprite/example-cuprite",
@@ -44,7 +45,7 @@
                 "unknowns": {"H2O_ABSCO": 0.01},
                 "radiative_transfer_engines": {
                     "vswir": {
-                        "engine_name": "simulated_modtran",
+                        "engine_name": "sRTMnet",
                         "engine_base_dir": "./6sv-2.1",
                         "aerosol_template_path": "../../data/aerosol_template.json",
                         "earth_sun_distance_file": "../../data/earth_sun_distance.txt",
@@ -63,11 +64,11 @@
         }
     },
     "hypertrace": {
+        "crossprod_experiment": ["False"], 
         "atm_aod_h2o": [["ATM_MIDLAT_SUMMER", 0.01, 1.0]],
         "inversion_mode": ["inversion"],
         "reflectance_file": "./hypertrace-data/reflectance/cuprite/cuprite_small.envi",
         "noisefile": ["./hypertrace-data/noise/noise_coeff_sbg_cbe0.txt"],
-        "surface_file": ["./hypertrace-data/priors/aviris-ng/surface_EMIT.mat"],
         "outdir_scheme": ["hash"]
     }
 }
